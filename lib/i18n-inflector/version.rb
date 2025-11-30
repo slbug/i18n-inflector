@@ -1,20 +1,20 @@
-# encoding: utf-8
+# frozen_string_literal: true
+
 #
 # Author::    Paweł Wilk (mailto:pw@gnu.org)
 # Copyright:: (c) 2011,2012,2013 by Paweł Wilk
 # License::   This program is licensed under the terms of {file:docs/LGPL GNU Lesser General Public License} or {file:docs/COPYING Ruby License}.
-# 
+#
 # This file contains version information.
 
 module I18n
   module Inflector
-
     # @private
     DEVELOPER   = 'Paweł Wilk'
     # @private
     EMAIL       = 'pw@gnu.org'
     # @private
-    VERSION     = '2.6.7'
+    VERSION     = '3.0.0'
     # @private
     NAME        = 'i18n-inflector'
     # @private
@@ -23,6 +23,5 @@ module I18n
     URL         = 'https://rubygems.org/gems/i18n-inflector/'
     # @private
     DESCRIPTION = 'Enhances simple I18n backend in a way that it inflects translation data using pattern interpolation.'
-
   end
 end

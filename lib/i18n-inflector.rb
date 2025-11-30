@@ -1,4 +1,4 @@
-# encoding: utf-8
+# frozen_string_literal: true
 
 require 'i18n'
 
@@ -16,4 +16,4 @@ require 'i18n-inflector/interpolate'
 require 'i18n-inflector/api_strict'
 require 'i18n-inflector/api'
 
-I18n::Backend::Simple.send(:include, I18n::Backend::Inflector)
+I18n::Backend::Simple.include I18n::Backend::Inflector

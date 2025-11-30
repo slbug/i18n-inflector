@@ -1,3 +1,16 @@
+=== 3.0.0 / 2025-11-30
+
+* major compatibility fixes
+
+  * Ruby 4.0.0-preview2 compatibility: Fixed HSet to use public Set API (include?) instead of internal @hash
+  * Ruby 3.4+ compatibility: Fixed frozen string literal issues
+
+* major enhancements
+
+  * Migrated from Hoe to Bundler build system
+  * Migrated tests from Test::Unit to Minitest
+  * Updated gemspec with modern Ruby requirements (>= 3.4)
+
 === 2.6.7 / 2013-06-18
 
 * major compatibility fixes

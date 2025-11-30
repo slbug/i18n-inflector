@@ -1,19 +1,17 @@
-# encoding: utf-8
+# frozen_string_literal: true
+
 #
 # Author::    Paweł Wilk (mailto:pw@gnu.org)
 # Copyright:: (c) 2011,2012,2013 by Paweł Wilk
 # License::   This program is licensed under the terms of {file:docs/LGPL GNU Lesser General Public License} or {file:docs/COPYING Ruby License}.
-# 
+#
 # This file contains lazy enumerators.
 
 module I18n
   module Inflector
-
-    if RUBY_VERSION.gsub(/\D/,'')[0..1].to_i < 19
-      require 'enumerator' rescue nil
+    if RUBY_VERSION.gsub(/\D/, '')[0..1].to_i < 19
 
       class LazyEnumerator < Object.const_defined?(:Enumerator) ? Enumerator : Enumerable::Enumerator
-
         # This class allows to initialize the Enumerator with a block
         class Yielder
           def initialize(&block)
@@ -35,23 +33,24 @@ module I18n
             end
           end
 
-          if method_defined?(:yield) and not method_defined?(:"<<")
-            alias_method :"<<", :yield
+          alias_method :<<, :yield if method_defined?(:yield) && !method_defined?(:<<)
+        end
+
+        unless begin
+          new {}
+        rescue StandardError
+          false
+        end
+          def initialize(*args, &)
+            args.empty? ? super(Yielder.new(&)) : super
           end
-
         end
 
-        unless (self.new{} rescue false)
-          def initialize(*args, &block)
-            args.empty? ? super(Yielder.new(&block)) : super(*args, &nil) 
-          end
+        if method_defined?(:with_object) && !method_defined?(:each_with_object)
+          alias_method :each_with_object,
+            :with_object
         end
-
-        if method_defined?(:with_object) and not method_defined?(:each_with_object)
-          alias_method :each_with_object, :with_object
-        end
-
-      end # class LazyEnumerator for ruby18
+      end
 
     else # if RUBY_VERSION >= 1.9.0
 
@@ -62,7 +61,6 @@ module I18n
 
     # This class adds some lazy operations for collections
     class LazyEnumerator
-
       # Create a new instance that iterates over the passed Enumerable
       # @return [I18n::Inflector::LazyEnumerator] the enumerator
       def self.for(enumerable)
@@ -141,32 +139,29 @@ module I18n
       # Checks if a collection is empty
       # @return [Boolean] +true+ if collection is empty, +false+ otherwise
       def empty?
-        self.class.new do |yielder|
-          each do |k,v|
+        self.class.new do |_yielder|
+          each do |_k, _v|
             return false
           end
         end
         true
       end
-
     end
 
     # This class implements simple enumerators for arrays
     # that allow to do lazy operations on them.
     class LazyArrayEnumerator < LazyEnumerator
-
     end
 
     # This class implements simple enumerators for hashes
     # that allow to do lazy operations on them.
     class LazyHashEnumerator < LazyEnumerator
-
       # Creates a Hash kind of object by collecting all
       # data from enumerated collection.
       # @return [Hash] the resulting hash
       def to_h
-        h = Hash.new
-        each{|k,v| h[k]=v }
+        h = {}
+        each { |k, v| h[k] = v }
         h
       end
 
@@ -175,8 +170,8 @@ module I18n
       def insert(key, value)
         self.class.new do |yielder|
           yielder.yield(key, value)
-          each do |k,v|
-            yielder.yield(k,v)
+          each do |k, v|
+            yielder.yield(k, v)
           end
         end
       end
@@ -185,8 +180,8 @@ module I18n
       # @return [I18n::Inflector::LazyHashEnumerator] the enumerator
       def append(key, value)
         self.class.new do |yielder|
-          each do |k,v|
-            yielder.yield(k,v)
+          each do |k, v|
+            yielder.yield(k, v)
           end
           yielder.yield(key, value)
         end
@@ -196,8 +191,8 @@ module I18n
       # @return [I18n::Inflector::LazyHashEnumerator] the enumerator
       def map(&block)
         LazyHashEnumerator.new do |yielder|
-          each do |k,v|
-            yielder.yield(k,block[k,v])
+          each do |k, v|
+            yielder.yield(k, block[k, v])
           end
         end
       end
@@ -216,23 +211,23 @@ module I18n
       # to an array.
       def keys
         ary = []
-        each{ |k,v| ary << k }
-        return ary
+        each { |k, _v| ary << k }
+        ary
       end
 
       # This method converts resulting values
       # to an array.
       def values
         ary = []
-        each{ |k,v| ary << v }
-        return ary
+        each { |_k, v| ary << v }
+        ary
       end
 
       # Keys enumerator
       # @return [I18n::Inflector::LazyArrayEnumerator.new] the enumerator
-      def each_key(&block)
+      def each_key
         LazyArrayEnumerator.new do |yielder|
-          each do |k,v|
+          each do |k, _v|
             yielder << k
           end
         end
@@ -240,9 +235,9 @@ module I18n
 
       # Values enumerator
       # @return [I18n::Inflector::LazyArrayEnumerator.new] the enumerator
-      def each_value(&block)
+      def each_value
         LazyArrayEnumerator.new do |yielder|
-          each do |k,v|
+          each do |_k, v|
             yielder << v
           end
         end
@@ -252,8 +247,8 @@ module I18n
       # @return [I18n::Inflector::LazyHashEnumerator] the enumerator
       def select(&block)
         self.class.new do |yielder|
-          each do |k,v|
-            yielder.yield(k,v) if block[k,v]
+          each do |k, v|
+            yielder.yield(k, v) if block[k, v]
           end
         end
       end
@@ -262,13 +257,11 @@ module I18n
       # @return [I18n::Inflector::LazyHashEnumerator] the enumerator
       def reject(&block)
         self.class.new do |yielder|
-          each do |k,v|
-            yielder.yield(k,v) unless block[k,v]
+          each do |k, v|
+            yielder.yield(k, v) unless block[k, v]
           end
         end
       end
-
-    end # class LazyHashEnumerator
-
+    end
   end
 end

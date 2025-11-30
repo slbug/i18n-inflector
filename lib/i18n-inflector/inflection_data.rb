@@ -1,34 +1,33 @@
-# encoding: utf-8
+# frozen_string_literal: true
+
 #
 # Author::    Paweł Wilk (mailto:pw@gnu.org)
 # Copyright:: (c) 2011,2012,2013 by Paweł Wilk
 # License::   This program is licensed under the terms of {file:docs/LGPL GNU Lesser General Public License} or {file:docs/COPYING Ruby License}.
-# 
+#
 # This file contains class that is used to keep
 # inflection data.
 
 # @abstract This namespace is shared with I18n subsystem.
 module I18n
   module Inflector
-
     # This class contains structures for keeping parsed translation data
     # and basic operations for performing on them.
     class InflectionData < InflectionData_Strict
-
       # Initializes internal structures.
-      # 
+      #
       # @param [Symbol,nil] locale the locale identifier for the object to be labeled with
-      def initialize(locale=nil)
+      def initialize(locale = nil)
         @kinds          = Hash.new(false)
         @tokens         = Hash.new(DUMMY_TOKEN)
         @lazy_tokens    = LazyHashEnumerator.for(@tokens)
         @lazy_kinds     = LazyArrayEnumerator.for(@kinds)
-        @defaults       = Hash.new
+        @defaults       = {}
         @locale         = locale
       end
 
       # Adds an alias (overwriting an existing alias).
-      # 
+      #
       # @return [Boolean] +true+ if everything went ok, +false+ otherwise
       #     (in case of bad or +nil+ names or non-existent targets)
       # @overload add_alias(name, target)
@@ -45,15 +44,17 @@ module I18n
       #   @param [Symbol] kind the optional kind of a taget
       #   @return [Boolean] +true+ if everything went ok, +false+ otherwise
       #     (in case of bad or +nil+ names or non-existent targets)
-      def add_alias(name, target, kind=nil)
+      def add_alias(name, target, kind = nil)
         target  = target.to_s
         name    = name.to_s
-        return false if (name.empty? || target.empty?)
-        kind    = nil if kind.to_s.empty? unless kind.nil?
+        return false if name.empty? || target.empty?
+
+        kind    = nil if !kind.nil? && !kind.nil? && kind.to_s.empty?
         name    = name.to_sym
         target  = target.to_sym
         t_kind  = get_kind(target)
-        return false if (t_kind.nil? || (!kind.nil? && t_kind != kind))
+        return false if t_kind.nil? || (!kind.nil? && t_kind != kind)
+
         @tokens[name] = {}
         @tokens[name][:kind]        = kind
         @tokens[name][:target]      = target
@@ -62,14 +63,15 @@ module I18n
       end
 
       # Adds a token (overwriting existing token).
-      # 
+      #
       # @param [Symbol] token the name of a token to add
       # @param [Symbol] kind the kind of a token
       # @param [String] description the description of a token
       # @return [Boolean] +true+ if everything went ok, +false+ otherwise
       #  (in case of bad names or non-existent targets)
       def add_token(token, kind, description)
-        return false if (token.to_s.empty? || kind.to_s.empty? || description.nil?)
+        return false if token.to_s.empty? || kind.to_s.empty? || description.nil?
+
         token = token.to_sym
         @tokens[token] = {}
         @tokens[token][:kind]         = kind.to_sym
@@ -78,12 +80,12 @@ module I18n
       end
 
       # Tests if the token is a true token.
-      # 
+      #
       # @overload has_true_token?(token)
       #   Tests if the token is a true token.
       #   @param [Symbol] token the identifier of a token
       #   @return [Boolean] +true+ if the given +token+ is
-      #     a token and not an alias, +false+ otherwise 
+      #     a token and not an alias, +false+ otherwise
       # @overload has_true_token?(token, kind)
       #   Tests if the token is a true token.
       #   The kind will work as the expectation filter.
@@ -91,53 +93,54 @@ module I18n
       #   @param [Symbol] kind the identifier of a kind
       #   @return [Boolean] +true+ if the given +token+ is
       #     a token and not an alias, and is a kind of
-      #     the given kind, +false+ otherwise 
-      def has_true_token?(token, kind=nil)
+      #     the given kind, +false+ otherwise
+      def has_true_token?(token, kind = nil)
         o = @tokens[token]
         k = o[:kind]
-        return false if (k.nil? || !o[:target].nil?)
-        kind.nil? ? true : k == kind
+        return false if k.nil? || !o[:target].nil?
+
+        kind.nil? || k == kind
       end
 
       # Tests if a token (or alias) is present.
-      # 
+      #
       # @overload has_token(token)
       #   Tests if a token (or alias) is present.
       #   @param [Symbol] token the identifier of a token
-      #   @return [Boolean] +true+ if the given +token+ 
+      #   @return [Boolean] +true+ if the given +token+
       #     (which may be an alias) exists
       # @overload has_token(token, kind)
       #   Tests if a token (or alias) is present.
       #   The kind will work as the expectation filter.
       #   @param [Symbol] token the identifier of a token
       #   @param [Symbol] kind the identifier of a kind
-      #   @return [Boolean] +true+ if the given +token+ 
+      #   @return [Boolean] +true+ if the given +token+
       #     (which may be an alias) exists and if kind of
       #     the given kind
-      def has_token?(token, kind=nil)
+      def has_token?(token, kind = nil)
         k = @tokens[token][:kind]
         kind.nil? ? !k.nil? : k == kind
       end
 
       # Tests if a kind exists.
-      # 
+      #
       # @param [Symbol] kind the identifier of a kind
       # @return [Boolean] +true+ if the given +kind+ exists
       def has_kind?(kind)
-        @kinds.has_key?(kind)
+        @kinds.key?(kind)
       end
 
       # Tests if a kind has a default token assigned.
-      # 
+      #
       # @param [Symbol] kind the identifier of a kind
       # @return [Boolean] +true+ if there is a default
       #   token of the given kind
       def has_default_token?(kind)
-        @defaults.has_key?(kind)
+        @defaults.key?(kind)
       end
 
       # Tests if the given alias is really an alias.
-      # 
+      #
       # @overload has_alias?(alias_name)
       #   Tests if the given alias is really an alias.
       #   @param [Symbol] alias_name the identifier of an alias
@@ -150,14 +153,15 @@ module I18n
       #   @param [Symbol] kind the identifier of a kind
       #   @return [Boolean] +true+ if the given alias is really an alias
       #     being a kind of the given kind, +false+ otherwise
-      def has_alias?(alias_name, kind=nil)
+      def has_alias?(alias_name, kind = nil)
         o = @tokens[alias_name]
         return false if o[:target].nil?
-        kind.nil? ? true : o[:kind] == kind
+
+        kind.nil? || o[:kind] == kind
       end
 
       # Iterates through all the true tokens (not aliases).
-      # 
+      #
       # @return [LazyHashEnumerator] the lazy enumerator (<tt>token => description</tt>)
       # @yield [token, description] optional block in which each token will be yielded
       # @yieldparam [Symbol] token a token
@@ -170,15 +174,15 @@ module I18n
       #   Reads all the true tokens (not aliases) of the given +kind+.
       #   @param [Symbol] kind the identifier of a kind
       #   @return [LazyHashEnumerator] the lazy enumerator (<tt>token => description</tt>)
-      def each_true_token(kind=nil, &block)
+      def each_true_token(kind = nil, &)
         t = @lazy_tokens
-        t = t.select  { |token,data| data[:kind] == kind  } unless kind.nil?
-        t.select      { |token,data| data[:target].nil?   }.
-          map         { |token,data| data[:description]   }.each(&block)
+        t = t.select  { |_token, data| data[:kind] == kind  } unless kind.nil?
+        t.select      { |_token, data| data[:target].nil?   }
+          .map         { |_token, data| data[:description]   }.each(&)
       end
 
       # Iterates through all the aliases.
-      # 
+      #
       # @return [LazyHashEnumerator] the lazy enumerator (<tt>alias => target</tt>)
       # @yield [alias, target] optional block in which each alias will be yielded
       # @yieldparam [Symbol] alias an alias
@@ -191,16 +195,16 @@ module I18n
       #   Reads all the aliases of the given +kind+.
       #   @param [Symbol] kind the identifier of a kind
       #   @return [LazyHashEnumerator] the lazy enumerator (<tt>alias => target</tt>)
-      def each_alias(kind=nil, &block)
+      def each_alias(kind = nil, &)
         t = @lazy_tokens
-        t = t.select  { |token,data| data[:kind] == kind  } unless kind.nil?
-        t.reject      { |token,data| data[:target].nil?   }.
-          map         { |token,data| data[:target]        }.each(&block)
+        t = t.select  { |_token, data| data[:kind] == kind  } unless kind.nil?
+        t.reject      { |_token, data| data[:target].nil?   }
+          .map         { |_token, data| data[:target]        }.each(&)
       end
 
       # Iterates through all the tokens in a way that it is possible to
       # distinguish true tokens from aliases.
-      # 
+      #
       # @note True tokens have descriptions (String) and aliases
       #   have targets (Symbol) assigned.
       # @return [LazyHashEnumerator] the lazy enumerator (<tt>token => description|target</tt>)
@@ -217,15 +221,15 @@ module I18n
       #   that it is possible to distinguish true tokens from aliases.
       #   @param [Symbol] kind the identifier of a kind
       #   @return [LazyHashEnumerator] the lazy enumerator (<tt>token => description|target</tt>)
-      def each_raw_token(kind=nil, &block)
+      def each_raw_token(kind = nil, &)
         t = @lazy_tokens
-        t = t.select  { |token,data| data[:kind] == kind } unless kind.nil?
-        t.map         { |token,data| data[:target] || data[:description]  }.
-        each(&block)
+        t = t.select  { |_token, data| data[:kind] == kind } unless kind.nil?
+        t.map         { |_token, data| data[:target] || data[:description] }
+          .each(&)
       end
 
       # Iterates through all the tokens (including aliases).
-      # 
+      #
       # @note Use {#each_raw_token} if you want to distinguish
       #   true tokens from aliases.
       # @return return [LazyHashEnumerator] the lazy enumerator (<tt>token => description</tt>)
@@ -241,14 +245,14 @@ module I18n
       #   given +kind+.
       #   @param [Symbol] kind the identifier of a kind
       #   @return [LazyHashEnumerator] the lazy enumerator (<tt>token => description</tt>)
-      def each_token(kind=nil, &block)
+      def each_token(kind = nil, &)
         t = @lazy_tokens
-        t = t.select  { |token,data| data[:kind] == kind } unless kind.nil?
-        t.map         { |token,data| data[:description]  }.each(&block)
+        t = t.select  { |_token, data| data[:kind] == kind } unless kind.nil?
+        t.map         { |_token, data| data[:description]  }.each(&)
       end
 
       # Gets a target token for the alias.
-      # 
+      #
       # @return [Symbol,nil] the token that the given alias points to
       #   or +nil+ if it isn't really an alias
       # @overload get_target_for_alias(alias_name)
@@ -262,12 +266,12 @@ module I18n
       #   @param [Symbol] kind the identifier of a kind
       #   @return [Symbol,nil] the token that the given alias points to
       #     or +nil+ if it isn't really an alias
-      def get_target_for_alias(alias_name, kind=nil)
+      def get_target_for_alias(alias_name, _kind = nil)
         @tokens[alias_name][:target]
       end
 
       # Gets a kind of the given token or alias.
-      # 
+      #
       # @return [Symbol,nil] the kind of the given +token+
       #   or +nil+ if the token is unknown
       # @overload get_kind(token)
@@ -282,14 +286,15 @@ module I18n
       #   @param [Symbol] kind the identifier of a kind
       #   @return [Symbol,nil] the kind of the given +token+
       #     or +nil+ if the token is unknown
-      def get_kind(token, kind=nil)
+      def get_kind(token, kind = nil)
         k = @tokens[token][:kind]
-        return k if (kind.nil? || kind == k)
+        return k if kind.nil? || kind == k
+
         nil
       end
 
       # Gets a true token for the given identifier.
-      # 
+      #
       # @note If the given +token+ is really an alias it will
       #   be resolved and the real token pointed by that alias
       #   will be returned.
@@ -308,17 +313,19 @@ module I18n
       #   @return [Symbol,nil] the true token for the given +token+
       #     or +nil+ if the token is unknown or is not a kind of the
       #     given +kind+
-      def get_true_token(token, kind=nil)
+      def get_true_token(token, kind = nil)
         o = @tokens[token]
         k = o[:kind]
         return nil if k.nil?
-        r = (o[:target] || token)
+
+        r = o[:target] || token
         return r if kind.nil?
-        k == kind ? r : nil
+
+        (k == kind) ? r : nil
       end
 
       # Reads the default token of a kind.
-      # 
+      #
       # @note It will always return true token (not an alias).
       # @param [Symbol] kind the identifier of a kind
       # @return [Symbol,nil] the default token of the given +kind+
@@ -342,11 +349,9 @@ module I18n
       #   @param [Symbol] kind the identifier of a kind
       #   @return [String,nil] the string containing description of the given
       #     token (which may be an alias) or +nil+ if the token is unknown
-      def get_description(token, kind=nil)
-        @tokens[token][:description] if (kind.nil? || @tokens[token][:kind] == kind)
+      def get_description(token, kind = nil)
+        @tokens[token][:description] if kind.nil? || @tokens[token][:kind] == kind
       end
-
-    end # InflectionData
-
+    end
   end
 end

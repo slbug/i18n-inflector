@@ -1,19 +1,18 @@
-# encoding: utf-8
+# frozen_string_literal: true
+
 #
 # Author::    Paweł Wilk (mailto:pw@gnu.org)
 # Copyright:: (c) 2011,2012,2013 by Paweł Wilk
 # License::   This program is licensed under the terms of {file:docs/LGPL GNU Lesser General Public License} or {file:docs/COPYING Ruby License}.
-# 
+#
 # This file contains I18n::Backend::Inflector module,
 # which extends I18n::Backend::Simple by adding the ability
 # to interpolate patterns containing inflection tokens
 # defined in translation data.
 
 module I18n
-
   # @abstract This namespace is shared with I18n subsystem.
   module Backend
-
     # This module contains methods that add
     # tokenized inflection support to internal I18n classes.
     # It is intened to be included in the Simple backend
@@ -21,7 +20,6 @@ module I18n
     # to interpolate additional inflection tokens present in translations.
     # Usually you don't have to know what's here to use it.
     module Inflector
-
       # Shortcut to configuration module.
       InflectorCfg = I18n::Inflector::Config
 
@@ -33,7 +31,7 @@ module I18n
       end
 
       # Cleans up internal hashes containg kinds, inflections and aliases.
-      # 
+      #
       # @api public
       # @note It calls {I18n::Backend::Simple#reload! I18n::Backend::Simple#reload!}
       # @return [Boolean] the result of calling ancestor's method
@@ -43,7 +41,7 @@ module I18n
       end
 
       # Translates given key taking care of inflections.
-      # 
+      #
       # @api public
       # @see I18n::Inflector::API#interpolate
       # @see I18n::Inflector::InflectionOptions
@@ -59,8 +57,11 @@ module I18n
         inflector_try_init
 
         # take care about cache-awareness
-        cached = options.has_key?(:inflector_cache_aware) ?
-                 options[:inflector_cache_aware] : @inflector.options.cache_aware
+        cached = if options.key?(:inflector_cache_aware)
+                   options[:inflector_cache_aware]
+                 else
+                   @inflector.options.cache_aware
+                 end
 
         if cached
           interpolate_options = options
@@ -74,28 +75,24 @@ module I18n
         translated_string = super
 
         # generate a pattern from key-based inflection object
-        if (translated_string.is_a?(Hash) && key.to_s[0..0] == InflectorCfg::Markers::STRICT_KIND)
+        if translated_string.is_a?(Hash) && key.to_s[0..0] == InflectorCfg::Markers::STRICT_KIND
           translated_string = @inflector.key_to_pattern(translated_string)
         end
 
         # interpolate string
         begin
-
           @inflector.options.prepare_options!(interpolate_options) unless cached
           @inflector.interpolate(translated_string, locale, interpolate_options)
 
         # complete the exception by adding translation key
         rescue I18n::InflectionException => e
-
           e.key = key
           raise
-
         end
-
       end
 
       # Stores translations in memory.
-      # 
+      #
       # @api public
       # @raise [I18n::InvalidLocale] if the given +locale+ is invalid
       # @raise [I18n::BadInflectionToken] if a name of some loaded token is invalid
@@ -104,14 +101,14 @@ module I18n
       # @raise [I18n::DuplicatedInflectionToken] if a token has already appeard in loaded configuration
       # @note If inflections are changed it will regenerate proper internal
       #   structures.
-      # @return [Hash] the stored translations 
+      # @return [Hash] the stored translations
       def store_translations(locale, data, options = {})
         r = super
         inflector_try_init
         if data.respond_to?(:has_key?)
-          subdata = (data[:i18n] || data['i18n'])
+          subdata = data[:i18n] || data['i18n']
           unless subdata.nil?
-            subdata = (subdata[:inflections] || subdata['inflections'])
+            subdata = subdata[:inflections] || subdata['inflections']
             unless subdata.nil?
               db, db_strict = load_inflection_tokens(locale, r[:i18n][:inflections])
               @inflector.add_database(db, db_strict)
@@ -124,19 +121,19 @@ module I18n
       protected
 
       # Initializes internal hashes used for keeping inflections configuration.
-      # 
+      #
       # @return [void]
       def inflector_try_init
-        unless (defined?(@inflector) && !@inflector.nil?)
-          @inflector = I18n::Inflector::API.new
-          init_translations unless initialized?
-        end
+        return if defined?(@inflector) && !@inflector.nil?
+
+        @inflector = I18n::Inflector::API.new
+        init_translations unless initialized?
       end
 
       # Takes care of loading inflection tokens
       # for all languages (locales) that have them
       # defined.
-      # 
+      #
       # @note It calls {I18n::Backend::Simple#init_translations I18n::Backend::Simple#init_translations}
       # @raise [I18n::BadInflectionToken] if a name of some loaded token is invalid
       # @raise [I18n::BadInflectionAlias] if a loaded alias points to a token that does not exists
@@ -144,15 +141,13 @@ module I18n
       # @raise [I18n::DuplicatedInflectionToken] if a token has already appeard in loaded configuration
       # @return [Boolean] +true+ if everything went fine
       def init_translations
-        unless (defined?(@inflector) && !@inflector.nil?)
-          @inflector = I18n::Inflector::API.new
-        end
+        @inflector = I18n::Inflector::API.new unless defined?(@inflector) && !@inflector.nil?
         super
       end
 
       # Gives an access to the internal structure containing configuration data
       # for the given locale.
-      # 
+      #
       # @note Under some very rare conditions this method may be called while
       #   translation data is loading. It must always return when translations
       #   are not initialized. Otherwise it will cause loops and someone in Poland
@@ -163,11 +158,12 @@ module I18n
       #   if translations are not initialized
       def inflection_subtree(locale)
         return nil unless initialized?
-        lookup(locale, :"i18n.inflections", [], :fallback => true, :raise => :false)
+
+        lookup(locale, :'i18n.inflections', [], fallback: true, raise: false)
       end
 
       # Resolves an alias for a token if the given +token+ is an alias.
-      # 
+      #
       # @note It does take care of aliasing loops (max traverses is set to 64).
       # @raise [I18n::BadInflectionToken] if a name of the token that alias points to is corrupted
       # @raise [I18n::BadInflectionAlias] if an alias points to token that does not exists
@@ -189,38 +185,33 @@ module I18n
       #   @param [Hash] subtree the tree (in a form of nested Hashes) containing inflection tokens to scan
       #   @return [Symbol] the true token that alias points to if the given +token+
       #     is an alias or the given +token+ if it is a true token
-      def shorten_inflection_alias(token, kind, locale, subtree=nil, count=0)
+      def shorten_inflection_alias(token, kind, locale, subtree = nil, count = 0)
         count += 1
         return nil if count > 64
 
         inflections_tree = subtree || inflection_subtree(locale)
-        return nil if (inflections_tree.nil? || inflections_tree.empty?)
+        return nil if inflections_tree.nil? || inflections_tree.empty?
 
         kind_subtree  = inflections_tree[kind]
         value         = kind_subtree[token].to_s
 
-        if value[0..0] != InflectorCfg::Markers::ALIAS
-          if kind_subtree.has_key?(token)
-            return token
-          else
-            raise I18n::BadInflectionToken.new(locale, token, kind)
-          end
-        else
+        if value[0..0] == InflectorCfg::Markers::ALIAS
           orig_token = token
-          token = value[1..-1]
+          token = value[1..]
 
-          if InflectorCfg::Reserved::Tokens.invalid?(token, :DB)
-            raise I18n::BadInflectionToken.new(locale, token, kind)
-          end
+          raise I18n::BadInflectionToken.new(locale, token, kind) if InflectorCfg::Reserved::Tokens.invalid?(token, :DB)
 
           token = token.to_sym
-          if kind_subtree[token].nil?
-            raise BadInflectionAlias.new(locale, orig_token, kind, token)
-          else
-            shorten_inflection_alias(token, kind, locale, inflections_tree, count)
-          end
-        end
+          raise BadInflectionAlias.new(locale, orig_token, kind, token) if kind_subtree[token].nil?
 
+          shorten_inflection_alias(token, kind, locale, inflections_tree, count)
+
+        else
+          return token if kind_subtree.key?(token)
+
+          raise I18n::BadInflectionToken.new(locale, token, kind)
+
+        end
       end
 
       # Uses the inflections subtree and creates internal mappings
@@ -244,32 +235,31 @@ module I18n
       #   @param [Hash] subtree the tree (in a form of nested Hashes) containing inflection tokens to scan
       #   @return [I18n::Inflector::InflectionData,nil] the database containing inflections tokens
       #     or +nil+ if something went wrong
-      def load_inflection_tokens(locale, subtree=nil)
+      def load_inflection_tokens(locale, subtree = nil)
         inflections_tree = subtree || inflection_subtree(locale)
-        return nil if (inflections_tree.nil? || inflections_tree.empty?)
+        return nil if inflections_tree.nil? || inflections_tree.empty?
+
         inflections_tree = deep_symbolize(inflections_tree)
 
         idb         = I18n::Inflector::InflectionData.new(locale)
         idb_strict  = I18n::Inflector::InflectionData_Strict.new(locale)
 
-        return nil if (idb.nil? || idb_strict.nil?)
+        return nil if idb.nil? || idb_strict.nil?
 
         inflections = prepare_inflections(locale, inflections_tree, idb, idb_strict)
 
         # add inflection tokens and kinds to internal database
         inflections.each do |orig_kind, kind, strict_kind, subdb, tokens|
-
           # validate token's kind
-          if (kind.to_s.empty? || InflectorCfg::Reserved::Kinds.invalid?(orig_kind, :DB))
+          if kind.to_s.empty? || InflectorCfg::Reserved::Kinds.invalid?(orig_kind, :DB)
             raise I18n::BadInflectionKind.new(locale, orig_kind)
           end
 
           tokens.each_pair do |token, description|
-
             # test for duplicate
             if subdb.has_token?(token, strict_kind)
               raise I18n::DuplicatedInflectionToken.new(locale, token, orig_kind,
-                                                        subdb.get_kind(token, strict_kind))
+                subdb.get_kind(token, strict_kind))
             end
 
             # validate token's name
@@ -292,31 +282,31 @@ module I18n
         end
 
         # handle aliases
-        inflections.each do |orig_kind, kind, strict_kind, subdb, tokens|
+        inflections.each do |orig_kind, kind, _strict_kind, subdb, tokens|
           tokens.each_pair do |token, description|
             next if token == :default
             next if description.to_s[0..0] != InflectorCfg::Markers::ALIAS
+
             real_token = shorten_inflection_alias(token, orig_kind, locale, inflections_tree)
             subdb.add_alias(token, real_token, kind) unless real_token.nil?
           end
-        end
 
-        # handle default tokens
-        inflections.each do |orig_kind, kind, strict_kind, subdb, tokens|
-          next unless tokens.has_key?(:default)
+          # handle default tokens
+          next unless tokens.key?(:default)
+
           if subdb.has_default_token?(kind)
-            raise I18n::DuplicatedInflectionToken.new(locale, :default, kind, orig_kind)
+            raise I18n::DuplicatedInflectionToken.new(locale, :default, kind,
+              orig_kind)
           end
+
           orig_target = tokens[:default]
           target = orig_target.to_s
-          target = target[1..-1] if target[0..0] == InflectorCfg::Markers::ALIAS
-          if target.empty?
-            raise I18n::BadInflectionToken.new(locale, token, orig_kind, orig_target)
-          end
+          target = target[1..] if target[0..0] == InflectorCfg::Markers::ALIAS
+          raise I18n::BadInflectionToken.new(locale, token, orig_kind, orig_target) if target.empty?
+
           target = subdb.get_true_token(target.to_sym, kind)
-          if target.nil?
-            raise I18n::BadInflectionAlias.new(locale, :default, orig_kind, orig_target)
-          end
+          raise I18n::BadInflectionAlias.new(locale, :default, orig_kind, orig_target) if target.nil?
+
           subdb.set_default_token(kind, target)
         end
 
@@ -325,20 +315,19 @@ module I18n
 
       # @private
       def prepare_inflections(locale, inflections, idb, idb_strict)
-        unless inflections.respond_to?(:has_key?)
-          raise I18n::BadInflectionKind.new(locale, :INFLECTIONS_ROOT)
-        end
+        raise I18n::BadInflectionKind.new(locale, :INFLECTIONS_ROOT) unless inflections.respond_to?(:has_key?)
+
         I18n::Inflector::LazyHashEnumerator.for(inflections).ary_map do |kind, tokens|
-          next if (tokens.nil? || tokens.empty?)
-          unless tokens.respond_to?(:has_key?)
-            raise I18n::BadInflectionKind.new(locale, kind)
-          end
+          next if tokens.nil? || tokens.empty?
+          raise I18n::BadInflectionKind.new(locale, kind) unless tokens.respond_to?(:has_key?)
+
           subdb       = idb
           strict_kind = nil
           orig_kind   = kind
           if kind.to_s[0..0] == InflectorCfg::Markers::STRICT_KIND
-            kind        = kind.to_s[1..-1]
+            kind = kind.to_s[1..]
             next if kind.empty?
+
             kind        = kind.to_sym
             subdb       = idb_strict
             strict_kind = kind
@@ -349,14 +338,15 @@ module I18n
 
       # @private
       def deep_symbolize(obj)
-        obj.inject({}) do |result, (key, value)|
+        obj.each_with_object({}) do |(key, value), result|
           value = deep_symbolize(value) if value.is_a?(Hash)
-          result[(key.to_s.to_sym rescue key) || key] = value
-          result
+          result[begin
+            key.to_s.to_sym
+          rescue StandardError
+            key
+          end || key] = value
         end
       end
-
-
-    end # module Inflector
-  end # module Backend
-end # module I18n
+    end
+  end
+end

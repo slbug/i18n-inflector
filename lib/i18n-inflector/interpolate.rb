@@ -1,27 +1,26 @@
-# encoding: utf-8
+# frozen_string_literal: true
+
 #
 # Author::    Paweł Wilk (mailto:pw@gnu.org)
 # Copyright:: (c) 2011,2012,2013 by Paweł Wilk
 # License::   This program is licensed under the terms of {file:docs/LGPL GNU Lesser General Public License} or {file:docs/COPYING Ruby License}.
-# 
+#
 # This file contains I18n::Inflector::Interpolate module,
 # which is included in the API.
 
 module I18n
   module Inflector
-
     # This module contains methods for interpolating
     # inflection patterns.
     module Interpolate
-
       include I18n::Inflector::Config
 
       # Interpolates inflection values in the given +string+
       # using kinds given in +options+ and a matching tokens.
-      # 
+      #
       # @param [String] string the translation string
       #  containing patterns to interpolate
-      # @param [String,Symbol] locale the locale identifier 
+      # @param [String,Symbol] locale the locale identifier
       # @param [Hash] options the options
       # ComplexPatternMalformed.new
       # @raise {I18n::InvalidInflectionKind}
@@ -50,8 +49,8 @@ module I18n
 
         when String
 
-          if (locale.nil? || !inflected_locale?(locale))
-            string.gsub(PATTERN_REGEXP) { Escapes::PATTERN[$1] ? $& : $1 }
+          if locale.nil? || !inflected_locale?(locale)
+            string.gsub(PATTERN_REGEXP) { Escapes::PATTERN[::Regexp.last_match(1)] ? ::Regexp.last_match(0) : ::Regexp.last_match(1) }
           elsif !string.include?(Markers::PATTERN)
             string
           else
@@ -60,19 +59,29 @@ module I18n
 
         when Hash
 
-          options[:inflector_traverses] ?
-            string.merge(string) { |k,v| interpolate(v, locale, options) } : string
+          if options[:inflector_traverses]
+            string.merge(string) { |_k, v| interpolate(v, locale, options) }
+          else
+            string
+          end
 
         when Array
 
-          options[:inflector_traverses] ?
-            string.map { |v| interpolate(v, locale, options) } : string
+          if options[:inflector_traverses]
+            string.map { |v| interpolate(v, locale, options) }
+          else
+            string
+          end
 
         when Symbol
 
           if options[:inflector_interpolate_symbols]
             r = interpolate(string.to_s, locale, options)
-            r.to_sym rescue :" "
+            begin
+              r.to_sym
+            rescue StandardError
+              :' '
+            end
           else
             string
           end
@@ -82,13 +91,12 @@ module I18n
           string
 
         end
-
       end
 
       # This method creates an inflection pattern
       # by collecting information contained in a key-based
       # inflection data.
-      # 
+      #
       # @param [Hash] key the given key
       # @return [String] the inflection pattern
       def key_to_pattern(key)
@@ -97,18 +105,17 @@ module I18n
         suff = key.delete(:@suffix).to_s
         kind = key.delete(:@kind).to_s
         free = key.delete(:@free)
-        free = free.nil? ? "" : ("" << Operators::Tokens::OR << free.to_s)
+        free = free.nil? ? '' : "#{Operators::Tokens::OR}#{free}"
 
-        "" << pref << Markers::PATTERN << kind << Markers::PATTERN_BEGIN  <<
-        key.map { |k,v| "" << k.to_s << Operators::Tokens::ASSIGN << v.to_s }.
-        join(Operators::Tokens::OR) << free << Markers::PATTERN_END << suff
+        "#{pref}#{Markers::PATTERN}#{kind}#{Markers::PATTERN_BEGIN}" <<
+          (key.map { |k, v| "#{k}#{Operators::Tokens::ASSIGN}#{v}" }
+            .join(Operators::Tokens::OR) + free + Markers::PATTERN_END + suff)
       end
 
       private
 
       # @private
       def interpolate_core(string, locale, options)
-
         @inflector_opt_cache ||= options.except(*Reserved::KEYS)
         passed_kinds = @inflector_opt_cache
 
@@ -121,11 +128,11 @@ module I18n
         idb_strict        = @idb_strict[locale]
 
         string.gsub(PATTERN_REGEXP) do
-          pattern_fix     = $1  # character sticked to the left side of a pattern
-          strict_kind     = $2  # strict kind(s) if any
-          pattern_content = $3  # content of a pattern
-          multipattern    = $4  # another pattern(s) sticked to the right side of a pattern
-          ext_pattern     = $&  # the matching string
+          pattern_fix     = ::Regexp.last_match(1)  # character sticked to the left side of a pattern
+          strict_kind     = ::Regexp.last_match(2)  # strict kind(s) if any
+          pattern_content = ::Regexp.last_match(3)  # content of a pattern
+          multipattern    = ::Regexp.last_match(4)  # another pattern(s) sticked to the right side of a pattern
+          ext_pattern     = ::Regexp.last_match(0)  # the matching string
 
           # initialize some defaults
           ext_freetext    = ''
@@ -136,7 +143,7 @@ module I18n
 
           # leave escaped pattern as-is
           unless pattern_fix.empty?
-            ext_pattern = ext_pattern[1..-1]
+            ext_pattern = ext_pattern[1..]
             next ext_pattern if Escapes::PATTERN[pattern_fix]
           end
 
@@ -145,16 +152,16 @@ module I18n
             patterns = []
             patterns << pattern_content
             patterns += multipattern.scan(MULTI_REGEXP).flatten
-            next "" << pattern_fix <<
-                       patterns.map do |content|
-                         interpolate_core("" << Markers::PATTERN       << strict_kind   <<
-                                                Markers::PATTERN_BEGIN << content       <<
-                                                Markers::PATTERN_END,
-                                          locale, options)
-                      end.join
+            next pattern_fix +
+              patterns.map do |content|
+                interpolate_core(Markers::PATTERN + strict_kind +
+                                        Markers::PATTERN_BEGIN + content +
+                                        Markers::PATTERN_END,
+                  locale, options)
+              end.join
           end
 
-          # set parsed kind if strict kind is given (named pattern is parsed) 
+          # set parsed kind if strict kind is given (named pattern is parsed)
           if strict_kind.empty?
             sym_parsed_kind = nil
             strict_kind     = nil
@@ -162,20 +169,20 @@ module I18n
             default_token   = nil
             subdb           = idb
           else
-            sym_parsed_kind = ("" << Markers::STRICT_KIND << strict_kind).to_sym
+            sym_parsed_kind = :"#{Markers::STRICT_KIND}#{strict_kind}"
 
             if strict_kind.include?(Operators::Tokens::AND)
 
               # Complex markers processing
               begin
                 result = interpolate_complex(strict_kind,
-                                             pattern_content,
-                                             locale, options)
+                  pattern_content,
+                  locale, options)
               rescue I18n::InflectionPatternException => e
                 e.pattern = ext_pattern
                 raise
               end
-              found = pattern_content = "" # disable further processing
+              found = pattern_content = '' # disable further processing
 
             else
 
@@ -183,14 +190,15 @@ module I18n
               subdb = idb_strict
 
               # validate strict kind and set needed variables
-              if (Reserved::Kinds.invalid?(strict_kind, :PATTERN) ||
-                  !idb_strict.has_kind?(strict_kind.to_sym))
+              if Reserved::Kinds.invalid?(strict_kind, :PATTERN) ||
+                  !idb_strict.has_kind?(strict_kind.to_sym)
                 raise I18n::InvalidInflectionKind.new(locale, ext_pattern, sym_parsed_kind) if raises
+
                 # Take a free text for invalid kind and return it
-                next "" << pattern_fix << pattern_content.scan(TOKENS_REGEXP).reverse.
-                                          select { |t,v,f| t.nil? && !f.nil? }.
-                                          map    { |t,v,f| f.to_s            }.
-                                          first.to_s
+                next '' + pattern_fix + pattern_content.scan(TOKENS_REGEXP).reverse
+                  .select { |t, _v, f| t.nil? && !f.nil? }
+                  .map    { |_t, _v, f| f.to_s }
+                  .first.to_s
               else
                 strict_kind   = strict_kind.to_sym
                 parsed_kind   = strict_kind
@@ -203,12 +211,12 @@ module I18n
 
           # process pattern content's
           pattern_content.scan(TOKENS_REGEXP) do
-            ext_token     = $1.to_s         # token(s)
-            ext_value     = $2.to_s         # value of token(s)
-            ext_freetext  = $3.to_s         # freetext if any
+            ext_token     = ::Regexp.last_match(1).to_s         # token(s)
+            ext_value     = ::Regexp.last_match(2).to_s         # value of token(s)
+            ext_freetext  = ::Regexp.last_match(3).to_s         # freetext if any
             ext_tokens    = nil
             tokens        = Hash.new(false)
-            negatives     = Hash.new(false) 
+            negatives     = Hash.new(false)
             kind          = nil
             passed_token  = nil
             result        = nil
@@ -218,9 +226,8 @@ module I18n
             # token not found?
             if ext_token.empty?
               # free text not found too? that should never happend.
-              if ext_freetext.empty?
-                raise I18n::InvalidInflectionToken.new(locale, ext_pattern, ext_token) if raises
-              end
+              raise I18n::InvalidInflectionToken.new(locale, ext_pattern, ext_token) if ext_freetext.empty? && raises
+
               next
             end
 
@@ -231,7 +238,7 @@ module I18n
                 wildcard_value = ext_value
               else
                 # wildcard for a known strict or regular kind
-                ext_tokens = subdb.each_true_token(parsed_kind).each_key.map{|k|k.to_s}
+                ext_tokens = subdb.each_true_token(parsed_kind).each_key.map(&:to_s)
               end
             end
 
@@ -243,12 +250,13 @@ module I18n
               # token name corrupted
               if t.to_s.empty?
                 raise I18n::InvalidInflectionToken.new(locale, ext_pattern, t) if raises
+
                 next
               end
 
               # mark negative-matching token and put it on the negatives fast list
               if t[0..0] == Operators::Token::NOT
-                t = t[1..-1]
+                t = t[1..]
                 negative = true
               else
                 negative = false
@@ -257,6 +265,7 @@ module I18n
               # is token name corrupted?
               if Reserved::Tokens.invalid?(t, :PATTERN)
                 raise I18n::InvalidInflectionToken.new(locale, ext_pattern, t) if raises
+
                 next
               end
 
@@ -265,17 +274,16 @@ module I18n
               negatives[t] = true if negative
 
               # get a kind for that token
-              kind  = subdb.get_kind(t, strict_kind)
+              kind = subdb.get_kind(t, strict_kind)
 
               if kind.nil?
                 if raises
                   # regular pattern and token that has a bad kind
-                  if strict_kind.nil?
-                    raise I18n::InvalidInflectionToken.new(locale, ext_pattern, t, sym_parsed_kind)
-                  else
-                    # named pattern (kind validated before, so the only error is misplaced token)
-                    raise I18n::MisplacedInflectionToken.new(locale, ext_pattern, t, sym_parsed_kind)
-                  end
+                  raise I18n::InvalidInflectionToken.new(locale, ext_pattern, t, sym_parsed_kind) if strict_kind.nil?
+
+                  # named pattern (kind validated before, so the only error is misplaced token)
+                  raise I18n::MisplacedInflectionToken.new(locale, ext_pattern, t, sym_parsed_kind)
+
                 end
                 next
               end
@@ -288,6 +296,7 @@ module I18n
               elsif parsed_kind != kind
                 # tokens of different kinds in one regular (not named) pattern are prohibited
                 raise I18n::MisplacedInflectionToken.new(locale, ext_pattern, t, sym_parsed_kind) if raises
+
                 next
               end
 
@@ -296,11 +305,11 @@ module I18n
                 tokens[t]     = true
                 default_value = ext_value if t == default_token
               end
-            end # token group processing
+            end
 
             # self-explanatory
-            if (tokens.empty? && negatives.empty?)
-              raise I18n::InvalidInflectionToken.new(locale, ext_pattern, ext_token) if raises
+            if tokens.empty? && negatives.empty? && raises
+              raise I18n::InvalidInflectionToken.new(locale, ext_pattern, ext_token)
             end
 
             # INFLECTION OPTION PROCESSING
@@ -310,11 +319,11 @@ module I18n
               expected_kind = parsed_kind
             else
               expected_kind = sym_parsed_kind
-              expected_kind = parsed_kind unless passed_kinds.has_key?(expected_kind)
+              expected_kind = parsed_kind unless passed_kinds.key?(expected_kind)
             end
 
             # get passed token from options or from a default token
-            if passed_kinds.has_key?(expected_kind)
+            if passed_kinds.key?(expected_kind)
 
               passed_token = passed_kinds[expected_kind]
 
@@ -335,6 +344,7 @@ module I18n
               # validate passed token's name
               if Reserved::Tokens.invalid?(passed_token, :OPTION)
                 raise I18n::InvalidInflectionOption.new(locale, ext_pattern, orig_passed_token) if raises
+
                 passed_token = default_token if unknown_defaults
               end
 
@@ -342,10 +352,12 @@ module I18n
               # current inflection option wasn't found
               # but delay this exception because we might use
               # the default token if found somewhere in a pattern
-              tb_raised = InflectionOptionNotFound.new(locale, ext_pattern, ext_token,
-                                                       expected_kind, orig_passed_token) if raises
-              passed_token      = default_token
-              orig_passed_token = nil
+              if raises
+                tb_raised = InflectionOptionNotFound.new(locale, ext_pattern, ext_token,
+                  expected_kind, orig_passed_token)
+              end
+              passed_token = default_token
+              nil
             end
 
             # explicit default
@@ -369,7 +381,7 @@ module I18n
             # or negatively matches one of the negated tokens
             case negatives.count
             when 0 then next unless tokens[passed_token]
-            when 1 then next if  negatives[passed_token]
+            when 1 then next if negatives[passed_token]
             end
 
             # skip further evaluation of the pattern
@@ -377,35 +389,35 @@ module I18n
             found   = passed_token
             result  = ext_value
             break
-
-          end # single token (or a group) processing
+          end
 
           # RESULTS PROCESSING
 
           # handle memorized wildcard token
           # when there was no way to deduce a token or a kind
           # it's just for regular kinds
-          unless (wildcard_value.nil? || passed_kinds.nil?)
+          unless wildcard_value.nil? || passed_kinds.nil?
             parsed_kind = nil
             found       = nil
             passed_kinds.each do |k, ot|
               t = subdb.get_true_token(ot, k)
               if Reserved::Tokens.invalid?(t, :OPTION)
                 raise I18n::InvalidInflectionOption.new(locale, ext_pattern, ot) if raises
+
                 next
               end
-              unless t.nil?
-                found = t
-                parsed_kind = k
-                break
-              end
+              next if t.nil?
+
+              found = t
+              parsed_kind = k
+              break
             end
-            unless (parsed_kind.nil? || found.nil?)
-              result = wildcard_value
-              wildcard_value = nil
-            else
+            if parsed_kind.nil? || found.nil?
               found = nil
               parsed_kind = nil
+            else
+              result = wildcard_value
+              wildcard_value = nil
             end
           end
 
@@ -421,9 +433,9 @@ module I18n
             # the pattern with a value picked for the default
             # token for that kind if a default token was present
             # in a pattern
-            if (excluded_defaults && !parsed_kind.nil?)
+            if excluded_defaults && !parsed_kind.nil?
               expected_kind = sym_parsed_kind
-              expected_kind = parsed_kind unless passed_kinds.has_key?(expected_kind)
+              expected_kind = parsed_kind unless passed_kinds.key?(expected_kind)
               t = passed_kinds[expected_kind]
               if t.is_a?(Method)
                 t = t.call { next expected_kind, locale }
@@ -432,9 +444,10 @@ module I18n
                 t = t.call(expected_kind, locale)
                 passed_kinds[expected_kind] = t # cache the result
               end
-              if Reserved::Tokens.invalid?(t, :OPTION)
-                raise I18n::InvalidInflectionOption.new(locale, ext_pattern, t) if raises
+              if Reserved::Tokens.invalid?(t, :OPTION) && raises
+                raise I18n::InvalidInflectionOption.new(locale, ext_pattern, t)
               end
+
               result = subdb.has_token?(t, parsed_kind) ? default_value : nil
             end
 
@@ -450,16 +463,14 @@ module I18n
 
           end
 
-          "" << pattern_fix << (result || ext_freetext)
-
-        end # single pattern processing
-
-      end # def interpolate
+          "#{pattern_fix}#{result || ext_freetext}"
+        end
+      end
 
       # This is a helper that reduces a complex inflection pattern
       # by producing equivalent of regular patterns of it and
       # by interpolating them using {#interpolate} method.
-      # 
+      #
       # @param [String] complex_kind the complex kind (many kinds separated
       #   by the {Operators::Tokens::AND})
       # @param [String] content the content of the processed pattern
@@ -468,15 +479,15 @@ module I18n
       # @return [String] the interpolated pattern
       def interpolate_complex(complex_kind, content, locale, options)
         result      = nil
-        free_text   = ""
-        kinds       = complex_kind.split(Operators::Tokens::AND).
-                      reject{ |k| k.nil? || k.empty? }.each
+        free_text   = ''
+        kinds       = complex_kind.split(Operators::Tokens::AND)
+          .reject { |k| k.nil? || k.empty? }.each
 
         begin
-
           content.scan(TOKENS_REGEXP) do |tokens, value, free|
             if tokens.nil?
-              raise IndexError.new if free.empty?
+              raise IndexError if free.empty?
+
               free_text = free
               next
             end
@@ -485,28 +496,29 @@ module I18n
 
             # process each token from set
             results = tokens.split(Operators::Tokens::AND).map do |token|
-              raise IndexError.new if token.empty?
+              raise IndexError if token.empty?
+
               if value == Markers::LOUD_VALUE
-                r = interpolate_core("" <<  Markers::PATTERN          <<
-                                            kinds.next.to_s           <<
-                                            Markers::PATTERN_BEGIN    <<
-                                            token.to_s                <<
-                                            Operators::Tokens::ASSIGN <<
-                                            value.to_s                <<
-                                            Operators::Tokens::OR     <<
-                                            Markers::PATTERN          <<
+                r = interpolate_core(Markers::PATTERN.to_s +
+                                            kinds.next.to_s           +
+                                            Markers::PATTERN_BEGIN    +
+                                            token.to_s                +
+                                            Operators::Tokens::ASSIGN +
+                                            value.to_s                +
+                                            Operators::Tokens::OR     +
+                                            Markers::PATTERN          +
                                             Markers::PATTERN_END,
-                                      locale, options)
+                  locale, options)
                 break if r == Markers::PATTERN # using this marker only as a helper to indicate empty result!
               else
-                r = interpolate_core("" <<  Markers::PATTERN          <<
-                                            kinds.next.to_s           <<
-                                            Markers::PATTERN_BEGIN    <<
-                                            token.to_s                <<
-                                            Operators::Tokens::ASSIGN <<
-                                            value.to_s                <<
+                r = interpolate_core(Markers::PATTERN.to_s +
+                                            kinds.next.to_s           +
+                                            Markers::PATTERN_BEGIN    +
+                                            token.to_s                +
+                                            Operators::Tokens::ASSIGN +
+                                            value.to_s                +
                                             Markers::PATTERN_END,
-                                     locale, options)
+                  locale, options)
                 break if r != value # stop with this set, because something is not matching
               end
               r
@@ -516,28 +528,19 @@ module I18n
             next if results.nil?
 
             # generate result for set or raise error
-            if results.size == kinds.count
-              result = value == Markers::LOUD_VALUE ? results.join(' ') : value
-              break
-            else
-              raise IndexError.new
-            end
+            raise IndexError unless results.size == kinds.count
 
-          end # scan tokens
-
-        rescue IndexError, StopIteration
-
-          if options[:inflector_raises]
-            raise I18n::ComplexPatternMalformed.new(locale, content, nil, complex_kind)
+            result = (value == Markers::LOUD_VALUE) ? results.join(' ') : value
+            break
           end
-          result = nil
+        rescue IndexError, StopIteration
+          raise I18n::ComplexPatternMalformed.new(locale, content, nil, complex_kind) if options[:inflector_raises]
 
+          result = nil
         end
 
         result || free_text
-
-      end # def interpolate_complex
-
-    end # module Interpolate
-  end # module Inflector
-end # module I18n
+      end
+    end
+  end
+end

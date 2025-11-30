@@ -1,42 +1,41 @@
-# encoding: utf-8
+# frozen_string_literal: true
+
 #
 # Author::    Paweł Wilk (mailto:pw@gnu.org)
 # Copyright:: (c) 2011,2012,2013 by Paweł Wilk
 # License::   This program is licensed under the terms of {file:docs/LGPL GNU Lesser General Public License} or {file:docs/COPYING Ruby License}.
-# 
+#
 # This file contains configuration of I18n::Inflector module.
 
 module I18n
-
   module Inflector
-
     # This module contains submodules and module
     # methods for handling global configuration
     # of the engine.
     module Config
-
       # @private
       def get_i18n_reserved_keys
         return I18n::RESERVED_KEYS                  if defined?(I18n::RESERVED_KEYS)
         return I18n::Backend::Base::RESERVED_KEYS   if defined?(I18n::Backend::Base::RESERVED_KEYS)
         return I18n::Backend::Simple::RESERVED_KEYS if defined?(I18n::Backend::Simple::RESERVED_KEYS)
         return RESERVED_KEYS                        if defined?(RESERVED_KEYS)
+
         []
       end
       module_function :get_i18n_reserved_keys
 
       # @private
-      def all_consts(obj, f=String)
-        obj.constants.map do |c|
+      def all_consts(obj, f = String)
+        obj.constants.filter_map do |c|
           v = obj.const_get(c)
           (v.is_a?(f) && c != 'ALL') ? v : nil
-        end.compact.uniq
+        end.uniq
       end
       module_function :all_consts
 
       # @private
       def gen_regexp(ary)
-        ::Regexp.new '[' << ary.join << ']'
+        ::Regexp.new "[#{ary.join}]"
       end
       module_function :gen_regexp
 
@@ -45,25 +44,22 @@ module I18n
 
       # Regexp matching a prefix that makes option
       # a controlling option.
-      OPTION_PREFIX_REGEXP = Regexp.new('^' << OPTION_PREFIX)
+      OPTION_PREFIX_REGEXP = Regexp.new("^#{OPTION_PREFIX}")
 
       # This module contains keys that have special
       # meaning.
       module Keys
-
         # A Symbol that is used to mark default token
         # in configuration and in options.
         DEFAULT_TOKEN = :default
 
         # All keys
         ALL = HSet.new Config.all_consts(self, Symbol)
-
-      end # module Keys
+      end
 
       # This module contains characters that are markers
       # giving the shape for a pattern and its elements.
       module Markers
-
         # A character that is used to mark pattern.
         PATTERN       = '@'
 
@@ -84,11 +80,9 @@ module I18n
 
         # All markers.
         ALL = Config.all_consts(self)
-
-      end # module Markers
+      end
 
       module Escapes
-
         # A general esape symbol.
         ESCAPE    = '\\'
 
@@ -97,25 +91,22 @@ module I18n
 
         # A list of escape symbols that cause a pattern to be escaped.
         PATTERN   = HSet[Markers::PATTERN, Escapes::ESCAPE]
-
-      end # module Escapes
+      end
 
       # This module contains constants that define
       # operators in patterns.
       module Operators
-
         # This module contains constants that define
         # operators in patterns that handle token
         # groups or tokens.
         module Tokens
-
           # A character used to mark patterns as complex
           # and to separate token groups assigned to different
           # strict kinds.
           AND       = '+'
 
           # A character that is used to separate tokens
-          # or token groups within a pattern. 
+          # or token groups within a pattern.
           OR        = '|'
 
           # A character used to assign value to a token
@@ -128,13 +119,11 @@ module I18n
 
           # All token groups operators.
           ALL       = Config.all_consts(self)
-
-        end # module Tokens
+        end
 
         # This module contains constants that are operators
         # in patterns that handle token groups or tokens.
         module Token
-
           # A character used to separate multiple tokens.
           OR        = ','
 
@@ -143,27 +132,25 @@ module I18n
 
           # All token operators.
           ALL       = Config.all_consts(self)
-
-        end # module Token
+        end
 
         # All operators.
         ALL = Tokens::ALL | Token::ALL
-
-      end # module Operators
+      end
 
       # This module contains constants defining
       # reserved characters in tokens and kinds.
       module Reserved
-
         # Reserved keys.
-        KEYS = HSet.new  Config.get_i18n_reserved_keys  +
-                         Config::Keys::ALL.to_a         +
-                         InflectionOptions.known.values
+        KEYS = HSet.new(
+          Config.get_i18n_reserved_keys +
+          Config::Keys::ALL.to_a +
+          InflectionOptions.known.values
+        )
 
         # This module contains constants defining
         # reserved characters in token identifiers.
         module Tokens
-
           # Reserved characters in token identifiers placed in configuration.
           DB        = (Operators::ALL | Markers::ALL) - [Markers::LOUD_VALUE]
 
@@ -177,7 +164,6 @@ module I18n
           # regular expressions for reserved characters
           # in token identifiers.
           module Regexp
-
             # Reserved characters in token identifiers placed in configuration.
             DB      = Config.gen_regexp Tokens::DB
 
@@ -186,13 +172,12 @@ module I18n
 
             # Reserved characters in token identifiers placed in patterns.
             PATTERN = Config.gen_regexp Tokens::PATTERN
-
-          end # module Regexp
+          end
 
           # This method checks if the given +token+ is invalid,
           # that means it's either +nil+ or empty or it matches
           # the refular expression given as +root+.
-          # 
+          #
           # @api public
           # @param [Symbol,String] token the identifier of a token
           # @param [Regexp] root the regular expression used to test
@@ -200,18 +185,16 @@ module I18n
           #   invalid, +false+ otherwise
           def invalid?(token, root)
             token = token.to_s
-            token.empty?                                          ||
-            (root == Regexp::PATTERN && Keys::ALL[token.to_sym])  ||
-            Regexp.const_get(root) =~ token
+            token.empty? ||
+              (root == Regexp::PATTERN && Keys::ALL[token.to_sym]) ||
+              Regexp.const_get(root) =~ token
           end
           module_function :invalid?
-
-        end # module Tokens
+        end
 
         # This module contains constants defining
         # reserved characters in kind identifiers.
         module Kinds
-
           # Reserved characters in kind identifiers placed in configuration.
           DB        = (Operators::ALL | Markers::ALL) - [Markers::ALIAS, Markers::LOUD_VALUE]
 
@@ -225,7 +208,6 @@ module I18n
           # regular expressions for reserved characters
           # in kind identifiers.
           module Regexp
-
             # Reserved characters in kind identifiers placed in configuration.
             DB      = Config.gen_regexp Kinds::DB
 
@@ -234,13 +216,12 @@ module I18n
 
             # Reserved characters in kind identifiers placed in patterns.
             PATTERN = Config.gen_regexp Kinds::PATTERN
-
-          end # module Regexp
+          end
 
           # This method checks if the given +kind+ is invalid,
           # that means it's either +nil+ or empty or it matches
           # the refular expression given as +root+.
-          # 
+          #
           # @api public
           # @param [Symbol,String] kind the identifier of a kind
           # @param [Regexp] root the regular expression used to test
@@ -248,35 +229,33 @@ module I18n
           #   invalid, +false+ otherwise
           def invalid?(kind, root)
             kind = kind.to_s
-            kind.empty?                                           ||
-             (root != Regexp::OPTION &&
-             (KEYS[kind.to_sym] || OPTION_PREFIX_REGEXP =~ kind)) ||
-            Regexp.const_get(root) =~ kind
+            kind.empty? ||
+              (root != Regexp::OPTION &&
+              (KEYS[kind.to_sym] || OPTION_PREFIX_REGEXP =~ kind)) ||
+              Regexp.const_get(root) =~ kind
           end
           module_function :invalid?
-
-        end # module Kinds
-
-      end # module Reserved
+        end
+      end
 
       # A string for regular expression that catches patterns.
-      PATTERN_RESTR   = '(.?)'  << Markers::PATTERN       <<
-                        '([^\\' << Markers::PATTERN_BEGIN << ']*)\\' << Markers::PATTERN_BEGIN <<
-                        '([^\\' << Markers::PATTERN_END   << ']+)\\' << Markers::PATTERN_END   <<
-                        '((?:\\'<< Markers::PATTERN_BEGIN << '([^\\' << Markers::PATTERN_BEGIN <<
-                        ']+)\\' << Markers::PATTERN_END   << ')*)'
+      PATTERN_RESTR = "(.?)#{Markers::PATTERN}" \
+                      "([^\\#{Markers::PATTERN_BEGIN}]*)\\#{Markers::PATTERN_BEGIN}" \
+                      "([^\\#{Markers::PATTERN_END}]+)\\#{Markers::PATTERN_END}" \
+                      "((?:\\#{Markers::PATTERN_BEGIN}([^\\#{Markers::PATTERN_BEGIN}" \
+                      "]+)\\#{Markers::PATTERN_END})*)".freeze
 
       # A string for regular expression that extracts additional patterns attached.
-      MULTI_RESTR     = '\\'    << Markers::PATTERN_BEGIN          <<
-                        '([^\\' << Markers::PATTERN_END + ']+)\\'  <<
-                        Markers::PATTERN_END
+      MULTI_RESTR = "\\#{Markers::PATTERN_BEGIN}" \
+                    "([^\\#{Markers::PATTERN_END}]+)\\" \
+                    "#{Markers::PATTERN_END}".freeze
 
       # A regular expression that catches token groups or single tokens.
-      TOKENS_RESTR   = '(?:'   <<
-                       '([^'   << Operators::Tokens::ASSIGN  << '\\'      << Operators::Tokens::OR << ']+)' <<
-                                  Operators::Tokens::ASSIGN  << '+'       <<
-                       '([^\\' << Operators::Tokens::OR      << ']+)\1?)' <<
-                       '|([^'  << Operators::Tokens::ASSIGN  << '\\'      << Operators::Tokens::OR << ']+)'
+      TOKENS_RESTR = '(?:' \
+                     "([^#{Operators::Tokens::ASSIGN}\\#{Operators::Tokens::OR}]+)" \
+                     "#{Operators::Tokens::ASSIGN}+" \
+                     "([^\\#{Operators::Tokens::OR}]+)\\1?)" \
+                     "|([^#{Operators::Tokens::ASSIGN}\\#{Operators::Tokens::OR}]+)".freeze
 
       # A regular expression that catches patterns.
       PATTERN_REGEXP  = Regexp.new PATTERN_RESTR
@@ -286,8 +265,7 @@ module I18n
 
       # A regular expression that catches token groups or single tokens.
       TOKENS_REGEXP   = Regexp.new TOKENS_RESTR
-
-    end # module Config
+    end
 
     # @private
     PATTERN_MARKER  = Config::Markers::PATTERN
@@ -307,7 +285,5 @@ module I18n
     TOKENS          = Config::TOKENS_REGEXP
     # @private
     INFLECTOR_RESERVED_KEYS = Config::Reserved::KEYS
-
-  end # module Inflector
-
-end # module I18n
+  end
+end
